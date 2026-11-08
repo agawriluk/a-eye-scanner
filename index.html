@@ -34,8 +34,9 @@
       padding: 16px;
       background: white;
       border-radius: 12px;
+      min-height: 50px;
     }
-    .error { color: #d32f2f; }
+    .error { color: #d32f2f; font-weight: bold; }
     .grade { font-size: 28px; font-weight: bold; color: #1a73e8; text-align: center; }
   </style>
 </head>
@@ -44,7 +45,7 @@
   <button id="startBtn">Start Scanner</button>
   <input id="manualInput" type="text" placeholder="Type serial and press Enter">
   <div id="reader"></div>
-  <div id="result"></div>
+  <div id="result">Ready</div>
 
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyZd8c6Cg6CowtIjaqnNSKPpZ6UuOIg520o5pgYOU9WxBXUE3OeaMxaZQTZBY2MA5fVbA/exec";
@@ -54,31 +55,44 @@
     const manualInput = document.getElementById("manualInput");
     let html5QrCode;
 
+    // Force all errors to show on the page
+    window.onerror = function(message, source, lineno, colno, error) {
+      resultDiv.innerHTML = "<p class='error'>JS Error: " + message + "<br>Line: " + lineno + "</p>";
+      return true;
+    };
+
+    window.addEventListener("unhandledrejection", function(event) {
+      resultDiv.innerHTML = "<p class='error'>Promise Error: " + event.reason + "</p>";
+    });
+
     manualInput.addEventListener("keydown", function(e) {
       if (e.key === "Enter" && this.value.trim()) {
         lookup(this.value.trim());
       }
     });
 
-    startBtn.onclick = function() {
-      startBtn.style.display = "none";
-      resultDiv.innerHTML = "<p>Starting camera...</p>";
+    startBtn.addEventListener("click", function() {
+      resultDiv.innerHTML = "<p>Button clicked. Starting...</p>";
+      try {
+        startBtn.style.display = "none";
+        html5QrCode = new Html5Qrcode("reader");
 
-      html5QrCode = new Html5Qrcode("reader");
-
-      html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 100 } },
-        function(decodedText) {
-          html5QrCode.stop();
-          resultDiv.innerHTML = "<p style='color:green'>Scanned: <b>" + decodedText + "</b></p>";
-          lookup(decodedText);
-        },
-        function() {}
-      ).catch(function(err) {
-        resultDiv.innerHTML = "<p class='error'>Camera error: " + err + "</p><button onclick='location.reload()'>Try Again</button>";
-      });
-    };
+        html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 100 } },
+          function(decodedText) {
+            html5QrCode.stop();
+            resultDiv.innerHTML = "<p style='color:green'>Scanned: <b>" + decodedText + "</b></p>";
+            lookup(decodedText);
+          },
+          function() {}
+        ).catch(function(err) {
+          resultDiv.innerHTML = "<p class='error'>Camera error: " + err + "</p><button onclick='location.reload()'>Try Again</button>";
+        });
+      } catch (err) {
+        resultDiv.innerHTML = "<p class='error'>Start failed: " + err.message + "</p><button onclick='location.reload()'>Try Again</button>";
+      }
+    });
 
     async function lookup(barcode) {
-      resultDiv.innerHTML += 
+      resultDiv.innerHTML = 
