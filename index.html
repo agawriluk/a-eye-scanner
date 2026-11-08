@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>A-Eye Card Lookup</title>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -28,7 +27,6 @@
       border: none;
     }
     input { border: 1px solid #ccc; }
-    #reader { width: 100%; margin: 16px 0; }
     #result {
       margin-top: 16px;
       padding: 16px;
@@ -36,15 +34,13 @@
       border-radius: 12px;
       min-height: 50px;
     }
-    .error { color: #d32f2f; font-weight: bold; }
-    .grade { font-size: 28px; font-weight: bold; color: #1a73e8; text-align: center; }
+    .error { color: #d32f2f; }
   </style>
 </head>
 <body>
   <h2>A-Eye Card Lookup</h2>
   <button id="startBtn">Start Scanner</button>
   <input id="manualInput" type="text" placeholder="Type serial and press Enter">
-  <div id="reader"></div>
   <div id="result">Ready</div>
 
   <script>
@@ -53,46 +49,21 @@
     const startBtn = document.getElementById("startBtn");
     const resultDiv = document.getElementById("result");
     const manualInput = document.getElementById("manualInput");
-    let html5QrCode;
 
-    // Force all errors to show on the page
-    window.onerror = function(message, source, lineno, colno, error) {
-      resultDiv.innerHTML = "<p class='error'>JS Error: " + message + "<br>Line: " + lineno + "</p>";
-      return true;
+    window.onerror = function(msg, url, line) {
+      resultDiv.innerHTML = "<p class='error'>Error: " + msg + " (line " + line + ")</p>";
     };
 
-    window.addEventListener("unhandledrejection", function(event) {
-      resultDiv.innerHTML = "<p class='error'>Promise Error: " + event.reason + "</p>";
-    });
+    startBtn.onclick = function() {
+      resultDiv.innerHTML = "<p>Button works! Camera scanning will be added next.</p>";
+    };
 
-    manualInput.addEventListener("keydown", function(e) {
+    manualInput.onkeydown = function(e) {
       if (e.key === "Enter" && this.value.trim()) {
         lookup(this.value.trim());
       }
-    });
-
-    startBtn.addEventListener("click", function() {
-      resultDiv.innerHTML = "<p>Button clicked. Starting...</p>";
-      try {
-        startBtn.style.display = "none";
-        html5QrCode = new Html5Qrcode("reader");
-
-        html5QrCode.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 100 } },
-          function(decodedText) {
-            html5QrCode.stop();
-            resultDiv.innerHTML = "<p style='color:green'>Scanned: <b>" + decodedText + "</b></p>";
-            lookup(decodedText);
-          },
-          function() {}
-        ).catch(function(err) {
-          resultDiv.innerHTML = "<p class='error'>Camera error: " + err + "</p><button onclick='location.reload()'>Try Again</button>";
-        });
-      } catch (err) {
-        resultDiv.innerHTML = "<p class='error'>Start failed: " + err.message + "</p><button onclick='location.reload()'>Try Again</button>";
-      }
-    });
+    };
 
     async function lookup(barcode) {
-      resultDiv.innerHTML = 
+      resultDiv.innerHTML = "<p>Looking up " + barcode + "...</p>";
+      try {
