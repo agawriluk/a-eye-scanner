@@ -14,18 +14,22 @@
       background: #f8f9fa;
     }
     h2 { text-align: center; margin-bottom: 16px; }
-    button {
+    button, input {
       padding: 14px 20px;
       font-size: 16px;
       margin: 8px 0;
       width: 100%;
-      border: none;
       border-radius: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      border: none;
       background: #1a73e8;
       color: white;
       cursor: pointer;
     }
     button:active { background: #1557b0; }
+    input { border: 1px solid #ccc; }
     #reader { width: 100%; margin: 16px 0; border-radius: 8px; overflow: hidden; }
     #result {
       margin-top: 20px;
@@ -43,6 +47,11 @@
 <body>
   <h2>A-Eye Card Lookup</h2>
   <button id="startBtn">Start Scanner</button>
+  
+  <div style="margin: 16px 0;">
+    <input id="manualInput" type="text" placeholder="Or type serial manually and press Enter">
+  </div>
+
   <div id="reader"></div>
   <div id="result"></div>
 
@@ -51,50 +60,60 @@
 
     const startBtn = document.getElementById('startBtn');
     const resultDiv = document.getElementById('result');
+    const manualInput = document.getElementById('manualInput');
     let html5QrCode;
 
-    // Show any errors on the page
-    window.onerror = function(msg, url, line) {
-      resultDiv.innerHTML = `<p class="error">Error: ${msg}<br>Line: ${line}</p>`;
-    };
+    startBtn.onclick = startScanner;
 
-    startBtn.onclick = function() {
-      startBtn.style.display = 'none';
-      resultDiv.innerHTML = '<p>Starting camera...</p>';
-
-      try {
-        html5QrCode = new Html5Qrcode("reader");
-
-        html5QrCode.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          onScanSuccess,
-          () => {}
-        ).catch(err => {
-          resultDiv.innerHTML = `<p class="error">Camera error: ${err}</p>
-            <button onclick="location.reload()">Try Again</button>`;
-        });
-      } catch (err) {
-        resultDiv.innerHTML = `<p class="error">Failed to start: ${err.message}</p>
-          <button onclick="location.reload()">Try Again</button>`;
+    manualInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter' && this.value.trim()) {
+        lookupBarcode(this.value.trim());
       }
-    };
+    });
 
-    async function onScanSuccess(decodedText) {
-      resultDiv.innerHTML = `<p style="color:green;">Scanned: <strong>${decodedText}</strong></p><p>Looking up...</p>`;
+    function startScanner() {
+      startBtn.style.display = 'none';
+      resultDiv.innerHTML = '<p>Starting camera... Point at a code.</p>';
+      html5QrCode = new Html5Qrcode("reader");
+
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { 
+          fps: 15,
+          qrbox: function(viewfinderWidth, viewfinderHeight) {
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const size = Math.floor(minEdge * 0.7);
+            return { width: size, height: size };
+          }
+        },
+        onScanSuccess,
+        () => {}
+      ).catch(err => {
+        resultDiv.innerHTML = `<p class="error">Camera error: ${err}</p>
+          <button onclick="location.reload()">Try Again</button>`;
+      });
+    }
+
+    function onScanSuccess(decodedText) {
+      resultDiv.innerHTML = `<p style="color:green;">Scanned: <strong>${decodedText}</strong></p>`;
       try { html5QrCode.stop(); } catch(e) {}
+      lookupBarcode(decodedText);
+    }
+
+    async function lookupBarcode(barcode) {
+      resultDiv.innerHTML += `<p>Looking up...</p>`;
 
       try {
         const response = await fetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: "barcode=" + encodeURIComponent(decodedText)
+          body: "barcode=" + encodeURIComponent(barcode)
         });
         const result = await response.json();
         showResult(result);
       } catch (err) {
         resultDiv.innerHTML = `<p class="error">Lookup failed: ${err.message}</p>
-          <p>Scanned value: ${decodedText}</p>
+          <p>Value: ${barcode}</p>
           <button onclick="location.reload()">Try Again</button>`;
       }
     }
