@@ -36,6 +36,81 @@
       border-radius: 8px;
       overflow: hidden;
       background: #111;
+    }
+    #interactive video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 16px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .error { color: #d32f2f; font-weight: 500; }
+    .grade { font-size: 28px; font-weight: 700; color: #1a73e8; text-align: center; margin: 12px 0; }
+    .field { margin: 8px 0; padding: 6px 0; border-bottom: 1px solid #eee; }
+    .label { font-weight: 600; color: #555; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h2>A-Eye Card Lookup</h2>
+  <button id="startBtn">Start Scanner</button>
+  
+  <input id="manualInput" type="text" placeholder="Or type serial and press Enter">
+
+  <div id="interactive"></div>
+  <div id="result"></div>
+
+  <script>
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyZd8c6Cg6CowtIjaqnNSKPpZ6UuOIg520o5pgYOU9WxBXUE3OeaMxaZQTZBY2MA5fVbA/exec";
+
+    const startBtn = document.getElementById('startBtn');
+    const resultDiv = document.getElementById('result');
+    const manualInput = document.getElementById('manualInput');
+    let isScanning = false;
+
+    // Show any errors on the page
+    window.onerror = <!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>A-Eye Card Lookup</title>
+  <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 16px;
+      max-width: 520px;
+      margin: auto;
+      background: #f8f9fa;
+    }
+    h2 { text-align: center; margin-bottom: 16px; }
+    button, input {
+      padding: 14px 20px;
+      font-size: 16px;
+      margin: 8px 0;
+      width: 100%;
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      border: none;
+      background: #1a73e8;
+      color: white;
+      cursor: pointer;
+    }
+    button:active { background: #1557b0; }
+    input { border: 1px solid #ccc; }
+    #interactive {
+      width: 100%;
+      margin: 16px 0;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #111;
       position: relative;
     }
     #interactive video {
