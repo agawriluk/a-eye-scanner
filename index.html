@@ -33,6 +33,7 @@
       margin: 16px 0;
       border-radius: 8px;
       background: #111;
+      display: none; /* hidden by default */
     }
     #result {
       margin-top: 16px;
@@ -70,11 +71,13 @@
 
     startBtn.onclick = function() {
       startBtn.style.display = "none";
+      video.style.display = "block";
       resultDiv.innerHTML = "<p>Starting camera...</p>";
 
       codeReader.decodeFromVideoDevice(null, "video", function(result, err) {
         if (result) {
           codeReader.reset();
+          video.style.display = "none";
           const code = result.getText();
           resultDiv.innerHTML = "<p style='color:green'>Scanned: <b>" + code + "</b></p>";
           lookup(code);
@@ -83,6 +86,7 @@
           console.error(err);
         }
       }).catch(function(err) {
+        video.style.display = "none";
         resultDiv.innerHTML = "<p class='error'>Camera error: " + err + "</p><button onclick='location.reload()'>Try Again</button>";
       });
     };
@@ -103,6 +107,7 @@
     }
 
     function showResult(response) {
+      video.style.display = "none";
       if (response.error) {
         resultDiv.innerHTML = "<p class='error'>" + response.error + "</p><button onclick='location.reload()'>Scan Again</button>";
         return;
