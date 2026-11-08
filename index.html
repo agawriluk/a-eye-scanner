@@ -110,3 +110,21 @@
     }
 
     function showResult(response) {
+      if (response.error) {
+        resultDiv.innerHTML = "<p class='error'>" + response.error + "</p><button onclick='location.reload()'>Scan Again</button>";
+        return;
+      }
+      const d = response.data;
+      let html = "<div class='grade'>" + (d["FINAL GRADE"] || "—") + "</div>";
+      const fields = ["SERIAL","CHARACTER","SET","YEAR","SET #","TCG","LANGUAGE","FOIL","CENTERING","SURFACE","CORNERS","EDGES","COMMENTS"];
+      fields.forEach(function(key) {
+        if (d[key]) {
+          html += "<p><b>" + key + ":</b> " + d[key] + "</p>";
+        }
+      });
+      html += "<button onclick='location.reload()'>Scan Another</button>";
+      resultDiv.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
