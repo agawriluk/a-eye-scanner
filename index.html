@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>A-Eye Card Lookup</title>
+  <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -58,8 +59,8 @@
     const resultDiv = document.getElementById("result");
     const manualInput = document.getElementById("manualInput");
     const video = document.getElementById("video");
-    let scanning = false;
-    let stream = null;
+
+    const codeReader = new ZXing.BrowserMultiFormatReader();
 
     manualInput.onkeydown = function(e) {
       if (e.key === "Enter" && this.value.trim()) {
@@ -67,48 +68,23 @@
       }
     };
 
-    startBtn.onclick = async function() {
-      if (scanning) return;
-      if (!("BarcodeDetector" in window)) {
-        resultDiv.innerHTML = "<p class='error'>BarcodeDetector is not supported in this browser. Try Chrome on Android.</p>";
-        return;
-      }
-
-      scanning = true;
+    startBtn.onclick = function() {
       startBtn.style.display = "none";
       resultDiv.innerHTML = "<p>Starting camera...</p>";
 
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" }
-        });
-        video.srcObject = stream;
-        await video.play();
-
-        const detector = new BarcodeDetector({ formats: ["code_128", "code_39", "ean_13", "ean_8", "upc_a", "upc_e"] });
-
-        const scan = async () => {
-          if (!scanning) return;
-          try {
-            const barcodes = await detector.detect(video);
-            if (barcodes.length > 0) {
-              const code = barcodes[0].rawValue;
-              scanning = false;
-              if (stream) stream.getTracks().forEach(t => t.stop());
-              resultDiv.innerHTML = "<p style='color:green'>Scanned: <b>" + code + "</b></p>";
-              lookup(code);
-              return;
-            }
-          } catch (e) {}
-          requestAnimationFrame(scan);
-        };
-        scan();
-        resultDiv.innerHTML = "<p>Camera ready. Point at the barcode.</p>";
-      } catch (err) {
-        resultDiv.innerHTML = "<p class='error'>Camera error: " + err.message + "</p><button onclick='location.reload()'>Try Again</button>";
-        scanning = false;
-        startBtn.style.display = "block";
-      }
+      codeReader.decodeFromVideoDevice(null, "video", function(result, err) {
+        if (result) {
+          codeReader.reset();
+          const code = result.getText();
+          resultDiv.innerHTML = "<p style='color:green'>Scanned: <b>" + code + "</b></p>";
+          lookup(code);
+        }
+        if (err && !(err instanceof ZXing.NotFoundException)) {
+          console.error(err);
+        }
+      }).catch(function(err) {
+        resultDiv.innerHTML = "<p class='error'>Camera error: " + err + "</p><button onclick='location.reload()'>Try Again</button>";
+      });
     };
 
     async function lookup(barcode) {
