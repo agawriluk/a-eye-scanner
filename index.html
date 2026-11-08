@@ -7,13 +7,27 @@
   <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
   <style>
     body {
-      font-family: system-ui, sans-serif;
+      font-family: 'Arial Black', Impact, sans-serif;
       padding: 16px;
-      max-width: 500px;
+      max-width: 520px;
       margin: auto;
-      background: #f8f9fa;
+      color: white;
+      background: radial-gradient(ellipse at center, #3a0a0a 0%, #1a0a00 40%, #0a1a0a 70%, #000000 100%);
+      min-height: 100vh;
+      text-shadow: 2px 2px 4px #000, -1px -1px 2px #000;
     }
-    h2 { text-align: center; }
+    h2 {
+      text-align: center;
+      font-size: 28px;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      text-align: center;
+      font-size: 14px;
+      margin-bottom: 20px;
+      opacity: 0.9;
+    }
     button, input {
       padding: 14px;
       font-size: 16px;
@@ -21,37 +35,67 @@
       width: 100%;
       border-radius: 8px;
       box-sizing: border-box;
+      font-family: inherit;
     }
     button {
-      background: #1a73e8;
+      background: linear-gradient(180deg, #c41e3a 0%, #8b0000 100%);
       color: white;
-      border: none;
+      border: 2px solid #ffd700;
+      text-shadow: 1px 1px 2px #000;
+      font-weight: bold;
+      letter-spacing: 1px;
     }
-    input { border: 1px solid #ccc; }
+    button:active {
+      background: #6b0000;
+    }
+    input {
+      background: rgba(0,0,0,0.6);
+      border: 2px solid #ffd700;
+      color: white;
+    }
+    input::placeholder {
+      color: #aaa;
+    }
     #video {
       width: 100%;
       margin: 16px 0;
       border-radius: 8px;
       background: #111;
-      display: none; /* hidden by default */
+      display: none;
+      border: 2px solid #ffd700;
     }
     #result {
       margin-top: 16px;
       padding: 16px;
-      background: white;
+      background: rgba(0,0,0,0.7);
       border-radius: 12px;
+      border: 2px solid #ffd700;
       min-height: 50px;
     }
-    .error { color: #d32f2f; }
-    .grade { font-size: 28px; font-weight: bold; color: #1a73e8; text-align: center; }
+    .error { color: #ff6b6b; }
+    .grade {
+      font-size: 48px;
+      font-weight: bold;
+      color: #ffd700;
+      text-align: center;
+      text-shadow: 3px 3px 6px #000;
+      margin: 10px 0;
+    }
+    .grade-label {
+      text-align: center;
+      font-size: 14px;
+      letter-spacing: 3px;
+    }
+    p { margin: 8px 0; }
   </style>
 </head>
 <body>
-  <h2>A-Eye Card Lookup</h2>
-  <button id="startBtn">Start Scanner</button>
-  <input id="manualInput" type="text" placeholder="Type serial and press Enter">
+  <h2>A-EYE GRADING</h2>
+  <div class="subtitle">CARD VERIFICATION</div>
+  <button id="startBtn">START SCANNER</button>
+  <input id="manualInput" type="text" placeholder="OR TYPE SERIAL AND PRESS ENTER">
   <video id="video" autoplay playsinline muted></video>
-  <div id="result">Ready</div>
+  <div id="result">READY TO SCAN</div>
 
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyZd8c6Cg6CowtIjaqnNSKPpZ6UuOIg520o5pgYOU9WxBXUE3OeaMxaZQTZBY2MA5fVbA/exec";
@@ -72,14 +116,14 @@
     startBtn.onclick = function() {
       startBtn.style.display = "none";
       video.style.display = "block";
-      resultDiv.innerHTML = "<p>Starting camera...</p>";
+      resultDiv.innerHTML = "<p>STARTING CAMERA...</p>";
 
       codeReader.decodeFromVideoDevice(null, "video", function(result, err) {
         if (result) {
           codeReader.reset();
           video.style.display = "none";
           const code = result.getText();
-          resultDiv.innerHTML = "<p style='color:green'>Scanned: <b>" + code + "</b></p>";
+          resultDiv.innerHTML = "<p style='color:#90ee90'>SCANNED: <b>" + code + "</b></p>";
           lookup(code);
         }
         if (err && !(err instanceof ZXing.NotFoundException)) {
@@ -87,12 +131,12 @@
         }
       }).catch(function(err) {
         video.style.display = "none";
-        resultDiv.innerHTML = "<p class='error'>Camera error: " + err + "</p><button onclick='location.reload()'>Try Again</button>";
+        resultDiv.innerHTML = "<p class='error'>CAMERA ERROR: " + err + "</p><button onclick='location.reload()'>TRY AGAIN</button>";
       });
     };
 
     async function lookup(barcode) {
-      resultDiv.innerHTML = "<p>Looking up " + barcode + "...</p>";
+      resultDiv.innerHTML = "<p>LOOKING UP " + barcode + "...</p>";
       try {
         const response = await fetch(APPS_SCRIPT_URL, {
           method: "POST",
@@ -102,25 +146,26 @@
         const result = await response.json();
         showResult(result);
       } catch (err) {
-        resultDiv.innerHTML = "<p class='error'>Lookup failed: " + err.message + "</p><button onclick='location.reload()'>Try Again</button>";
+        resultDiv.innerHTML = "<p class='error'>LOOKUP FAILED: " + err.message + "</p><button onclick='location.reload()'>TRY AGAIN</button>";
       }
     }
 
     function showResult(response) {
       video.style.display = "none";
       if (response.error) {
-        resultDiv.innerHTML = "<p class='error'>" + response.error + "</p><button onclick='location.reload()'>Scan Again</button>";
+        resultDiv.innerHTML = "<p class='error'>" + response.error + "</p><button onclick='location.reload()'>SCAN AGAIN</button>";
         return;
       }
       const d = response.data;
-      let html = "<div class='grade'>" + (d["FINAL GRADE"] || "—") + "</div>";
+      let html = "<div class='grade-label'>GRADE</div>";
+      html += "<div class='grade'>" + (d["FINAL GRADE"] || "—") + "</div>";
       const fields = ["SERIAL","CHARACTER","SET","YEAR","SET #","TCG","LANGUAGE","FOIL","CENTERING","SURFACE","CORNERS","EDGES","COMMENTS"];
       fields.forEach(function(key) {
         if (d[key]) {
           html += "<p><b>" + key + ":</b> " + d[key] + "</p>";
         }
       });
-      html += "<button onclick='location.reload()'>Scan Another</button>";
+      html += "<button onclick='location.reload()'>SCAN ANOTHER</button>";
       resultDiv.innerHTML = html;
     }
   </script>
