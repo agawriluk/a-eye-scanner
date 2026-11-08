@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>A-Eye Card Lookup</title>
-  <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -28,17 +27,11 @@
       border: none;
     }
     input { border: 1px solid #ccc; }
-    #interactive {
+    #video {
       width: 100%;
       margin: 16px 0;
-      background: #111;
       border-radius: 8px;
-      overflow: hidden;
-    }
-    #interactive video {
-      width: 100%;
-      height: auto;
-      display: block;
+      background: #111;
     }
     #result {
       margin-top: 16px;
@@ -55,7 +48,7 @@
   <h2>A-Eye Card Lookup</h2>
   <button id="startBtn">Start Scanner</button>
   <input id="manualInput" type="text" placeholder="Type serial and press Enter">
-  <div id="interactive"></div>
+  <video id="video" autoplay playsinline muted></video>
   <div id="result">Ready</div>
 
   <script>
@@ -64,7 +57,9 @@
     const startBtn = document.getElementById("startBtn");
     const resultDiv = document.getElementById("result");
     const manualInput = document.getElementById("manualInput");
+    const video = document.getElementById("video");
     let scanning = false;
+    let stream = null;
 
     manualInput.onkeydown = function(e) {
       if (e.key === "Enter" && this.value.trim()) {
@@ -72,53 +67,48 @@
       }
     };
 
-    startBtn.onclick = function() {
+    startBtn.onclick = async function() {
       if (scanning) return;
+      if (!("BarcodeDetector" in window)) {
+        resultDiv.innerHTML = "<p class='error'>BarcodeDetector is not supported in this browser. Try Chrome on Android.</p>";
+        return;
+      }
+
       scanning = true;
       startBtn.style.display = "none";
       resultDiv.innerHTML = "<p>Starting camera...</p>";
 
-      Quagga.init({
-        inputStream: {
-          type: "LiveStream",
-          target: document.querySelector("#interactive"),
-          constraints: {
-            facingMode: "environment",
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
-        },
-        locator: {
-          patchSize: "medium",
-          halfSample: true
-        },
-        numOfWorkers: 2,
-        frequency: 10,
-        decoder: {
-          readers: ["code_128_reader"]
-        },
-        locate: true
-      }, function(err) {
-        if (err) {
-          resultDiv.innerHTML = "<p class='error'>Camera error: " + (err.message || err) + "</p><button onclick='location.reload()'>Try Again</button>";
-          scanning = false;
-          startBtn.style.display = "block";
-          return;
-        }
-        Quagga.start();
-        resultDiv.innerHTML = "<p>Camera ready. Point at the barcode.</p>";
-      });
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" }
+        });
+        video.srcObject = stream;
+        await video.play();
 
-      Quagga.onDetected(function(data) {
-        if (!scanning) return;
-        const code = data.codeResult && data.codeResult.code;
-        if (code) {
-          scanning = false;
-          Quagga.stop();
-          resultDiv.innerHTML = "<p style='color:green'>Scanned: <b>" + code + "</b></p>";
-          lookup(code);
-        }
-      });
+        const detector = new BarcodeDetector({ formats: ["code_128", "code_39", "ean_13", "ean_8", "upc_a", "upc_e"] });
+
+        const scan = async () => {
+          if (!scanning) return;
+          try {
+            const barcodes = await detector.detect(video);
+            if (barcodes.length > 0) {
+              const code = barcodes[0].rawValue;
+              scanning = false;
+              if (stream) stream.getTracks().forEach(t => t.stop());
+              resultDiv.innerHTML = "<p style='color:green'>Scanned: <b>" + code + "</b></p>";
+              lookup(code);
+              return;
+            }
+          } catch (e) {}
+          requestAnimationFrame(scan);
+        };
+        scan();
+        resultDiv.innerHTML = "<p>Camera ready. Point at the barcode.</p>";
+      } catch (err) {
+        resultDiv.innerHTML = "<p class='error'>Camera error: " + err.message + "</p><button onclick='location.reload()'>Try Again</button>";
+        scanning = false;
+        startBtn.style.display = "block";
+      }
     };
 
     async function lookup(barcode) {
