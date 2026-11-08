@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <title>A-Eye Card Lookup</title>
   <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
   <style>
@@ -35,11 +35,13 @@
       margin: 16px 0;
       border-radius: 8px;
       overflow: hidden;
-      background: #000;
+      background: #111;
+      position: relative;
     }
-    #interactive video, #interactive canvas {
+    #interactive video {
       width: 100%;
       height: auto;
+      display: block;
     }
     #result {
       margin-top: 20px;
@@ -58,11 +60,9 @@
   <h2>A-Eye Card Lookup</h2>
   <button id="startBtn">Start Scanner</button>
   
-  <div style="margin: 16px 0;">
-    <input id="manualInput" type="text" placeholder="Or type serial manually and press Enter">
-  </div>
+  <input id="manualInput" type="text" placeholder="Or type serial and press Enter">
 
-  <div id="interactive" class="viewport"></div>
+  <div id="interactive"></div>
   <div id="result"></div>
 
   <script>
@@ -71,110 +71,59 @@
     const startBtn = document.getElementById('startBtn');
     const resultDiv = document.getElementById('result');
     const manualInput = document.getElementById('manualInput');
-    let scanning = false;
+    let isScanning = false;
 
     startBtn.onclick = startScanner;
 
-    manualInput.addEventListener('keypress', function(e) {
+    manualInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && this.value.trim()) {
         lookupBarcode(this.value.trim());
       }
     });
 
     function startScanner() {
-      if (scanning) return;
-      scanning = true;
+      if (isScanning) return;
+      isScanning = true;
       startBtn.style.display = 'none';
-      resultDiv.innerHTML = '<p>Starting camera... Hold barcode steady in the view.</p>';
+      resultDiv.innerHTML = '<p>Starting camera… Hold the barcode steady and fill the frame.</p>';
 
       Quagga.init({
         inputStream: {
-          name: "Live",
           type: "LiveStream",
           target: document.querySelector('#interactive'),
           constraints: {
             facingMode: "environment",
-            width: { min: 640 },
-            height: { min: 480 }
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           }
         },
         locator: {
           patchSize: "medium",
           halfSample: true
         },
-        numOfWorkers: 2,
+        numOfWorkers: navigator.hardwareConcurrency || 2,
         frequency: 10,
         decoder: {
-          readers: [
-            "code_128_reader",
-            "ean_reader",
-            "ean_8_reader",
-            "code_39_reader",
-            "upc_reader",
-            "upc_e_reader"
-          ]
+          readers: ["code_128_reader"]
         },
         locate: true
       }, function(err) {
         if (err) {
-          resultDiv.innerHTML = `<p class="error">Camera error: ${err}</p>
+          console.error(err);
+          resultDiv.innerHTML = `<p class="error">Camera failed: ${err.message || err}</p>
             <button onclick="location.reload()">Try Again</button>`;
-          scanning = false;
+          isScanning = false;
+          startBtn.style.display = 'block';
           return;
         }
         Quagga.start();
+        resultDiv.innerHTML = '<p>Camera ready. Point at the barcode.</p>';
       });
 
-      Quagga.onDetected(function(result) {
-        if (!scanning) return;
-        const code = result.codeResult.code;
+      Quagga.onDetected(function(data) {
+        if (!isScanning) return;
+        const code = data.codeResult && data.codeResult.code;
         if (code) {
-          scanning = false;
+          isScanning = false;
           Quagga.stop();
           resultDiv.innerHTML = `<p style="color:green;">Scanned: <strong>${code}</strong></p>`;
-          lookupBarcode(code);
-        }
-      });
-    }
-
-    async function lookupBarcode(barcode) {
-      resultDiv.innerHTML += `<p>Looking up...</p>`;
-
-      try {
-        const response = await fetch(APPS_SCRIPT_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: "barcode=" + encodeURIComponent(barcode)
-        });
-        const result = await response.json();
-        showResult(result);
-      } catch (err) {
-        resultDiv.innerHTML = `<p class="error">Lookup failed: ${err.message}</p>
-          <p>Value: ${barcode}</p>
-          <button onclick="location.reload()">Try Again</button>`;
-      }
-    }
-
-    function showResult(response) {
-      if (response.error) {
-        resultDiv.innerHTML = `<p class="error">${response.error}</p>
-          <button onclick="location.reload()">Scan Again</button>`;
-        return;
-      }
-
-      const d = response.data;
-      let html = `<div class="grade">${d['FINAL GRADE'] || '—'}</div>`;
-
-      const fields = ['SERIAL','CHARACTER','SET','YEAR','SET #','TCG','LANGUAGE','FOIL','CENTERING','SURFACE','CORNERS','EDGES','COMMENTS'];
-      fields.forEach(key => {
-        if (d[key] !== undefined && d[key] !== '') {
-          html += `<div class="field"><div class="label">${key}</div><div>${d[key]}</div></div>`;
-        }
-      });
-
-      html += `<button onclick="location.reload()">Scan Another Card</button>`;
-      resultDiv.innerHTML = html;
-    }
-  </script>
-</body>
-</html>
