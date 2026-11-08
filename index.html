@@ -53,23 +53,32 @@
     const resultDiv = document.getElementById('result');
     let html5QrCode;
 
-    startBtn.onclick = startScanner;
+    // Show any errors on the page
+    window.onerror = function(msg, url, line) {
+      resultDiv.innerHTML = `<p class="error">Error: ${msg}<br>Line: ${line}</p>`;
+    };
 
-    function startScanner() {
+    startBtn.onclick = function() {
       startBtn.style.display = 'none';
       resultDiv.innerHTML = '<p>Starting camera...</p>';
-      html5QrCode = new Html5Qrcode("reader");
 
-      html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        onScanSuccess,
-        () => {}
-      ).catch(err => {
-        resultDiv.innerHTML = `<p class="error">Camera error: ${err}</p>
+      try {
+        html5QrCode = new Html5Qrcode("reader");
+
+        html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          onScanSuccess,
+          () => {}
+        ).catch(err => {
+          resultDiv.innerHTML = `<p class="error">Camera error: ${err}</p>
+            <button onclick="location.reload()">Try Again</button>`;
+        });
+      } catch (err) {
+        resultDiv.innerHTML = `<p class="error">Failed to start: ${err.message}</p>
           <button onclick="location.reload()">Try Again</button>`;
-      });
-    }
+      }
+    };
 
     async function onScanSuccess(decodedText) {
       resultDiv.innerHTML = `<p style="color:green;">Scanned: <strong>${decodedText}</strong></p><p>Looking up...</p>`;
@@ -79,4 +88,37 @@
         const response = await fetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: "barcode=" + 
+          body: "barcode=" + encodeURIComponent(decodedText)
+        });
+        const result = await response.json();
+        showResult(result);
+      } catch (err) {
+        resultDiv.innerHTML = `<p class="error">Lookup failed: ${err.message}</p>
+          <p>Scanned value: ${decodedText}</p>
+          <button onclick="location.reload()">Try Again</button>`;
+      }
+    }
+
+    function showResult(response) {
+      if (response.error) {
+        resultDiv.innerHTML = `<p class="error">${response.error}</p>
+          <button onclick="location.reload()">Scan Again</button>`;
+        return;
+      }
+
+      const d = response.data;
+      let html = `<div class="grade">${d['FINAL GRADE'] || '—'}</div>`;
+
+      const fields = ['SERIAL','CHARACTER','SET','YEAR','SET #','TCG','LANGUAGE','FOIL','CENTERING','SURFACE','CORNERS','EDGES','COMMENTS'];
+      fields.forEach(key => {
+        if (d[key] !== undefined && d[key] !== '') {
+          html += `<div class="field"><div class="label">${key}</div><div>${d[key]}</div></div>`;
+        }
+      });
+
+      html += `<button onclick="location.reload()">Scan Another Card</button>`;
+      resultDiv.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
