@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>A-Eye Card Lookup</title>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
   <style>
     body {
       font-family: system-ui, -apple-system, sans-serif;
@@ -30,7 +30,17 @@
     }
     button:active { background: #1557b0; }
     input { border: 1px solid #ccc; }
-    #reader { width: 100%; margin: 16px 0; border-radius: 8px; overflow: hidden; }
+    #interactive {
+      width: 100%;
+      margin: 16px 0;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #000;
+    }
+    #interactive video, #interactive canvas {
+      width: 100%;
+      height: auto;
+    }
     #result {
       margin-top: 20px;
       padding: 16px;
@@ -52,7 +62,7 @@
     <input id="manualInput" type="text" placeholder="Or type serial manually and press Enter">
   </div>
 
-  <div id="reader"></div>
+  <div id="interactive" class="viewport"></div>
   <div id="result"></div>
 
   <script>
@@ -61,7 +71,7 @@
     const startBtn = document.getElementById('startBtn');
     const resultDiv = document.getElementById('result');
     const manualInput = document.getElementById('manualInput');
-    let html5QrCode;
+    let scanning = false;
 
     startBtn.onclick = startScanner;
 
@@ -72,32 +82,59 @@
     });
 
     function startScanner() {
+      if (scanning) return;
+      scanning = true;
       startBtn.style.display = 'none';
-      resultDiv.innerHTML = '<p>Starting camera... Point at a code.</p>';
-      html5QrCode = new Html5Qrcode("reader");
+      resultDiv.innerHTML = '<p>Starting camera... Hold barcode steady in the view.</p>';
 
-      html5QrCode.start(
-        { facingMode: "environment" },
-        { 
-          fps: 15,
-          qrbox: function(viewfinderWidth, viewfinderHeight) {
-            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-            const size = Math.floor(minEdge * 0.7);
-            return { width: size, height: size };
+      Quagga.init({
+        inputStream: {
+          name: "Live",
+          type: "LiveStream",
+          target: document.querySelector('#interactive'),
+          constraints: {
+            facingMode: "environment",
+            width: { min: 640 },
+            height: { min: 480 }
           }
         },
-        onScanSuccess,
-        () => {}
-      ).catch(err => {
-        resultDiv.innerHTML = `<p class="error">Camera error: ${err}</p>
-          <button onclick="location.reload()">Try Again</button>`;
+        locator: {
+          patchSize: "medium",
+          halfSample: true
+        },
+        numOfWorkers: 2,
+        frequency: 10,
+        decoder: {
+          readers: [
+            "code_128_reader",
+            "ean_reader",
+            "ean_8_reader",
+            "code_39_reader",
+            "upc_reader",
+            "upc_e_reader"
+          ]
+        },
+        locate: true
+      }, function(err) {
+        if (err) {
+          resultDiv.innerHTML = `<p class="error">Camera error: ${err}</p>
+            <button onclick="location.reload()">Try Again</button>`;
+          scanning = false;
+          return;
+        }
+        Quagga.start();
       });
-    }
 
-    function onScanSuccess(decodedText) {
-      resultDiv.innerHTML = `<p style="color:green;">Scanned: <strong>${decodedText}</strong></p>`;
-      try { html5QrCode.stop(); } catch(e) {}
-      lookupBarcode(decodedText);
+      Quagga.onDetected(function(result) {
+        if (!scanning) return;
+        const code = result.codeResult.code;
+        if (code) {
+          scanning = false;
+          Quagga.stop();
+          resultDiv.innerHTML = `<p style="color:green;">Scanned: <strong>${code}</strong></p>`;
+          lookupBarcode(code);
+        }
+      });
     }
 
     async function lookupBarcode(barcode) {
