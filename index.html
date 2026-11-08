@@ -71,6 +71,7 @@
       border-radius: 12px;
       border: 2px solid #ffd700;
       min-height: 50px;
+      display: none; /* hidden until there's something to show */
     }
     .error { color: #ff6b6b; }
     .grade {
@@ -95,7 +96,7 @@
   <button id="startBtn">START SCANNER</button>
   <input id="manualInput" type="text" placeholder="OR TYPE SERIAL AND PRESS ENTER">
   <video id="video" autoplay playsinline muted></video>
-  <div id="result">READY TO SCAN</div>
+  <div id="result"></div>
 
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyZd8c6Cg6CowtIjaqnNSKPpZ6UuOIg520o5pgYOU9WxBXUE3OeaMxaZQTZBY2MA5fVbA/exec";
@@ -116,14 +117,12 @@
     startBtn.onclick = function() {
       startBtn.style.display = "none";
       video.style.display = "block";
-      resultDiv.innerHTML = "<p>STARTING CAMERA...</p>";
 
       codeReader.decodeFromVideoDevice(null, "video", function(result, err) {
         if (result) {
           codeReader.reset();
           video.style.display = "none";
           const code = result.getText();
-          resultDiv.innerHTML = "<p style='color:#90ee90'>SCANNED: <b>" + code + "</b></p>";
           lookup(code);
         }
         if (err && !(err instanceof ZXing.NotFoundException)) {
@@ -131,11 +130,13 @@
         }
       }).catch(function(err) {
         video.style.display = "none";
+        resultDiv.style.display = "block";
         resultDiv.innerHTML = "<p class='error'>CAMERA ERROR: " + err + "</p><button onclick='location.reload()'>TRY AGAIN</button>";
       });
     };
 
     async function lookup(barcode) {
+      resultDiv.style.display = "block";
       resultDiv.innerHTML = "<p>LOOKING UP " + barcode + "...</p>";
       try {
         const response = await fetch(APPS_SCRIPT_URL, {
@@ -152,6 +153,7 @@
 
     function showResult(response) {
       video.style.display = "none";
+      resultDiv.style.display = "block";
       if (response.error) {
         resultDiv.innerHTML = "<p class='error'>" + response.error + "</p><button onclick='location.reload()'>SCAN AGAIN</button>";
         return;
