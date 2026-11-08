@@ -67,3 +67,25 @@
     async function lookup(barcode) {
       resultDiv.innerHTML = "<p>Looking up " + barcode + "...</p>";
       try {
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: "barcode=" + encodeURIComponent(barcode)
+        });
+        const result = await response.json();
+        if (result.error) {
+          resultDiv.innerHTML = "<p class='error'>" + result.error + "</p>";
+        } else {
+          const d = result.data;
+          let html = "<p><b>Grade:</b> " + (d["FINAL GRADE"] || "—") + "</p>";
+          html += "<p><b>Serial:</b> " + (d["SERIAL"] || "") + "</p>";
+          html += "<p><b>Character:</b> " + (d["CHARACTER"] || "") + "</p>";
+          resultDiv.innerHTML = html;
+        }
+      } catch (err) {
+        resultDiv.innerHTML = "<p class='error'>Lookup failed: " + err.message + "</p>";
+      }
+    }
+  </script>
+</body>
+</html>
