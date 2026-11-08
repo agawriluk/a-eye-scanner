@@ -65,13 +65,23 @@
       startBtn.style.display = "none";
       resultDiv.innerHTML = "<p>Starting camera...</p>";
 
-      html5QrCode = new Html5Qrcode("reader");
+      // Explicitly enable Code 128 and other common barcodes
+      const formats = [
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E
+      ];
+
+      html5QrCode = new Html5Qrcode("reader", { formatsToSupport: formats });
 
       html5QrCode.start(
         { facingMode: "environment" },
         { 
           fps: 10, 
-          qrbox: { width: 280, height: 120 }
+          qrbox: { width: 300, height: 100 }
         },
         function(decodedText) {
           html5QrCode.stop();
@@ -100,21 +110,3 @@
     }
 
     function showResult(response) {
-      if (response.error) {
-        resultDiv.innerHTML = "<p class='error'>" + response.error + "</p><button onclick='location.reload()'>Scan Again</button>";
-        return;
-      }
-      const d = response.data;
-      let html = "<div class='grade'>" + (d["FINAL GRADE"] || "—") + "</div>";
-      const fields = ["SERIAL","CHARACTER","SET","YEAR","SET #","TCG","LANGUAGE","FOIL","CENTERING","SURFACE","CORNERS","EDGES","COMMENTS"];
-      fields.forEach(function(key) {
-        if (d[key]) {
-          html += "<p><b>" + key + ":</b> " + d[key] + "</p>";
-        }
-      });
-      html += "<button onclick='location.reload()'>Scan Another</button>";
-      resultDiv.innerHTML = html;
-    }
-  </script>
-</body>
-</html>
