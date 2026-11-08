@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A-Eye Card Lookup</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 16px;
+      max-width: 520px;
+      margin: auto;
+      background: #f8f9fa;
+    }
+    h2 { text-align: center; margin-bottom: 16px; }
+    button {
+      padding: 14px 20px;
+      font-size: 16px;
+      margin: 8px 0;
+      width: 100%;
+      border: none;
+      border-radius: 8px;
+      background: #1a73e8;
+      color: white;
+      cursor: pointer;
+    }
+    button:active { background: #1557b0; }
+    #reader { width: 100%; margin: 16px 0; border-radius: 8px; overflow: hidden; }
+    #result {
+      margin-top: 20px;
+      padding: 16px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .error { color: #d32f2f; font-weight: 500; }
+    .grade { font-size: 28px; font-weight: 700; color: #1a73e8; text-align: center; margin: 12px 0; }
+    .field { margin: 8px 0; padding: 6px 0; border-bottom: 1px solid #eee; }
+    .label { font-weight: 600; color: #555; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h2>A-Eye Card Lookup</h2>
+  <button id="startBtn">Start Scanner</button>
+  <div id="reader"></div>
+  <div id="result"></div>
+
+  <script>
+    // ⚠️ REPLACE THIS with your actual Apps Script web app URL (ends in /exec)
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
+
+    const startBtn = document.getElementById('startBtn');
+    const resultDiv = document.getElementById('result');
+    let html5QrCode;
+
+    startBtn.onclick = startScanner;
+
+    function startScanner() {
+      startBtn.style.display = 'none';
+      resultDiv.innerHTML = '';
+      html5QrCode = new Html5Qrcode("reader");
+
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 280, height: 160 } },
+        onScanSuccess,
+        () => {}
+      ).catch(err => {
+        resultDiv.innerHTML = `<p class="error">Camera error: ${err}</p>
+          <button onclick="location.reload()">Try Again</button>`;
+      });
+    }
+
+    async function onScanSuccess(decodedText) {
+      html5QrCode.stop();
+      resultDiv.innerHTML = `<p>Looking up serial: <strong>${decodedText}</strong>...</p>`;
+
+      try {
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: "barcode=" + encodeURIComponent(decodedText)
+        });
+        const result = await response.json();
+        showResult(result);
+      } catch (err) {
+        resultDiv.innerHTML = `<p class="error">Request failed: ${err}</p>
+          <button onclick="location.reload()">Try Again</button>`;
+      }
+    }
+
+    function showResult(response) {
+      if (response.error) {
+        resultDiv.innerHTML = `<p class="error">${response.error}</p>
+          <button onclick="location.reload()">Scan Again</button>`;
+        return;
+      }
+
+      const d = response.data;
+      let html = `<div class="grade">${d['FINAL GRADE'] || '—'}</div>`;
+
+      const fields = [
+        'SERIAL', 'CHARACTER', 'SET', 'YEAR', 'SET #',
+        'TCG', 'LANGUAGE', 'FOIL',
+        'CENTERING', 'SURFACE', 'CORNERS', 'EDGES',
+        'COMMENTS'
+      ];
+
+      fields.forEach(key => {
+        if (d[key] !== undefined && d[key] !== '') {
+          html += `<div class="field"><div class="label">${key}</div><div>${d[key]}</div></div>`;
+        }
+      });
+
+      html += `<button onclick="location.reload()">Scan Another Card</button>`;
+      resultDiv.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
